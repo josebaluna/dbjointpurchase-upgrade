@@ -17,7 +17,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
 
-<div class="dbjointpurchase_product product_card">
+ <div class="dbjointpurchase_product product_card">
     <div class="dbjointpurchase_header">
         <span class="h3">{l s='Comprados juntos habitualmente' mod='dbjointpurchase'}</span>
     </div>
@@ -50,11 +50,11 @@
                     <img src="{$product.cover.bySize.home_default.url}" alt="{$product.name}" loading="lazy" width="{$product.cover.bySize.home_default.width}" height="{$product.cover.bySize.home_default.height}">
                 </div>
             </div>
-            <div class="icon_more_purchase">
-                <i class="material-icons">add</i>
-            </div>
             {foreach from=$productos item=products key=i}
                 {foreach from=$products item=producto}
+                    <div class="icon_more_purchase">
+                        <i class="material-icons">add</i>
+                    </div>
                     <div class="dbjointpurchase_product joint_product block_joint_{$i} active" data-bestproduct="{$producto.id_product}">
                         {include file='module:dbjointpurchase/views/templates/hook/product_joint.tpl'}
                     </div>

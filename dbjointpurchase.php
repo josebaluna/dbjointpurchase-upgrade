@@ -42,7 +42,7 @@ class Dbjointpurchase extends Module
 
         $this->name = 'dbjointpurchase';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.1';
+        $this->version = '1.0.2';
         $this->author = 'DevBlinders';
         $this->need_instance = 0;
 
@@ -65,16 +65,20 @@ class Dbjointpurchase extends Module
      */
     public function install()
     {
+        include(dirname(__FILE__).'/sql/install.php');
         Configuration::updateValue('DBJOINT_COLOR', '#2fb5d2');
         Configuration::updateValue('DBJOINT_EXCLUDE', '');
         return parent::install() &&
             $this->registerHook('displayHeader') &&
             $this->registerHook('displayBackOfficeHeader') &&
-            $this->registerHook('displayFooterProduct');
+            $this->registerHook('displayFooterProduct') && 
+            $this->registerHook('actionProductUpdate') && 
+            $this->registerHook('displayAdminProductsMainStepLeftColumnBottom');
     }
 
     public function uninstall()
     {
+        include(dirname(__FILE__).'/sql/uninstall.php');
         return parent::uninstall();
     }
 
@@ -275,6 +279,33 @@ class Dbjointpurchase extends Module
     public function getProductsGenerate($id_product)
     {
         $excludes = $this->getProductsExcludes();
+        $relatedProductsIds = $this->getRelatedProductIds($id_product);
+        // Si hay productos relacionados en la ficha del producto los añadimos
+        if (!empty($relatedProductsIds)) {
+            $relatedProductsIds = implode(', ', $relatedProductsIds);
+
+            $sql = "SELECT p.id_product, p.price
+                FROM " . _DB_PREFIX_ . "product p 
+                LEFT JOIN " . _DB_PREFIX_ . "product_shop ps ON p.id_product = ps.id_product
+                " . Shop::addSqlAssociation('product', 'p') . "
+                " . Product::sqlStock('p', 0) . "
+                WHERE ps.id_product IN (" . $relatedProductsIds . ")
+                    AND ps.active = 1 
+                    AND p.available_for_order = 1  
+                    AND p.visibility != 'none' 
+                    AND p.price > 0
+                    AND (stock.out_of_stock = 1 OR stock.quantity > 0)";
+
+            $results = Db::getInstance()->ExecuteS($sql);
+
+            foreach ($results as $key => $row) {
+                $products[$key][] = array(
+                    'id_product' => $row['id_product'],
+                    'price' => $row['price'],
+                );
+            }
+            return $products;
+        }
 
         $products = [];
         $sql = "SELECT od.product_id, count(od.product_id) as total, p.price, p.id_category_default
@@ -300,7 +331,7 @@ class Dbjointpurchase extends Module
                 HAVING COUNT(*) > 1 
                 ORDER BY total DESC
                 LIMIT 3";
-        $results = Db::getInstance()->ExecuteS($sql);
+        $results = Db::getInstance()->ExecuteS($sql);        
         if (count($results) >= 1) {
             foreach ($results as $row) {
                 $products[$row['id_category_default']][] = array(
@@ -433,4 +464,97 @@ class Dbjointpurchase extends Module
 
         return $excludes;
     }
+
+    public function hookActionProductUpdate($params)
+    {
+        $productId = (int)$params['id_product'];
+        $relatedProductsIds = Tools::getValue('related_products_ids');
+        $relatedProductIdsArray = array_map('trim', explode(',', $relatedProductsIds));
+        $relatedProductIdsArray = array_unique(array_filter($relatedProductIdsArray));
+
+        if (!empty($relatedProductIdsArray)) {
+            $this->saveRelatedProducts($productId, $relatedProductIdsArray);
+        }
+
+    }
+
+    protected function saveRelatedProducts($productId, $relatedProductIds)
+    {
+        // Obtenemos las relaciones existentes para este producto para guardar solo las que no existen
+        $existingRelations = Db::getInstance()->executeS(
+            'SELECT id_related FROM ' . _DB_PREFIX_ . 'dbjointpurchase WHERE id_product = ' . (int)$productId
+        );
+        $existingIds = array_map(function ($relation) {
+            return $relation['id_related'];
+        }, $existingRelations);
+        $relationsToDelete = array_diff($existingIds, $relatedProductIds);
+        if (!empty($relationsToDelete)) {
+            $sqlDelete = 'DELETE FROM ' . _DB_PREFIX_ . 'dbjointpurchase WHERE id_product = ' . (int)$productId
+                . ' AND id_related IN (' . implode(',', $relationsToDelete) . ')';
+            Db::getInstance()->execute($sqlDelete);
+        }
+        // Insertar nuevas relaciones que no existen (3 max)
+        $newRelationsToAdd = array_slice($relatedProductIds, 0, 3);
+        foreach ($newRelationsToAdd as $relatedProductId) {
+            if (!in_array($relatedProductId, $existingIds)) {
+                $data = array(
+                    'id_product' => (int)$productId,
+                    'id_related' => (int)$relatedProductId,
+                );
+                Db::getInstance()->insert('dbjointpurchase', $data);
+            }
+        }
+        return true;
+    }
+
+    protected function getRelatedProducts($productId)
+    {
+        $relatedProducts = array();
+        $sql = 'SELECT `id_related`
+        FROM `' . _DB_PREFIX_ . 'dbjointpurchase`
+        WHERE `id_product` = ' . (int)$productId;
+        $results = Db::getInstance()->executeS($sql);
+
+        if ($results && count($results) > 0) {
+            foreach ($results as $result) {
+                $relatedProductId = (int)$result['id_related'];
+                $relatedProduct = new Product($relatedProductId);
+                $relatedProducts[] = array(
+                    'id_product' => $relatedProductId,
+                    'name' => $relatedProduct->name,
+                );
+            }
+        }
+        return $relatedProducts;
+    }
+
+    public function getRelatedProductIds($productId)
+    {
+        $relatedProductIds = array();
+        $sql = 'SELECT id_related FROM ' . _DB_PREFIX_ . 'dbjointpurchase WHERE id_product = ' . (int) $productId;
+        $results = Db::getInstance()->executeS($sql);
+        
+        if ($results && is_array($results)) {
+            foreach ($results as $result) {
+                $relatedProductIds[] = (int) $result['id_related'];
+            }
+        }
+        return $relatedProductIds;
+    }
+
+    public function hookDisplayAdminProductsMainStepLeftColumnBottom($params)
+    {
+        $productId = (int)$params['id_product'];
+        $relatedProductsIds = $this->getRelatedProductIds($productId);
+        $relatedProductsIds = implode(', ', $relatedProductsIds);
+        $relatedProducts = $this->getRelatedProducts($productId);
+
+        $this->context->smarty->assign(array(
+            'productId' => $productId,
+            'relatedProductsIds' => $relatedProductsIds,
+            'relatedProducts' => $relatedProducts,
+        ));
+        return $this->fetch('module:dbjointpurchase/views/templates/hook/displayAdminProducts.tpl');
+    }
+
 }

@@ -17,7 +17,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-.dbjointpurchase_product.product_card {
+ .dbjointpurchase_product.product_card {
     margin-top: 2rem;
 }
 .dbjointpurchase_product .dbjointpurchase {
@@ -266,7 +266,7 @@
 .dbjointpurchase_products .icon_more_purchase {
     display: flex;
     align-items: center;
-    width: 50px;
+    width: 18px;
     justify-content: center;
 }
 
@@ -274,11 +274,11 @@
     border-radius: 50%;
     color: #FFF;
     background-color: var(--dbjoint_color);
-    font-size: 30px;
-    line-height: 30px;
+    font-size: 25px;
+    line-height: 25px;
     display: block;
-    height: 30px;
-    width: 30px;
+    height: 25px;
+    width: 25px;
 }
 
 @media (max-width: 991px) {

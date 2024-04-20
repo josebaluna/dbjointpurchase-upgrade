@@ -242,8 +242,10 @@ class Dbjointpurchase extends Module
                 $this->getCacheId($key)
             )) {
                 $productos = [];
+                $count = 1;
                 foreach ($products_cat as $key => $products) {
                     $productos[$key] = $this->prepareBlocksProducts($products);
+                    $count++;
                     foreach ($productos[$key] as $pr) {
                         $total_price += $pr['price_amount'];
                     }
@@ -252,6 +254,7 @@ class Dbjointpurchase extends Module
                                           'productos' => $productos,
                                           'total_price' => $total_price,
                                           'premium' => $this->premium,
+                                          'total_productos' => $count,
                                       ));
             }
 

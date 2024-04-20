@@ -64,7 +64,7 @@
         <div class="dbjointpurchase_footer">
             {*<span class="super_oferta">{l s='¡Oferta!' mod='dbjointpurchase'}</span>*}
             <span class="precio_pack_product">
-                <span class="num_products"><span class="num">4</span> {l s='producto(s) por' mod='dbjointpurchase'}</span>
+                <span class="num_products"><span class="num">{$total_productos}</span> {l s='producto(s) por' mod='dbjointpurchase'}</span>
                 <span class="precio_pack_product_total">
                     <span class="regular_price">{Tools::displayPrice($total_price)}</span>
                     <span class="iva">{l s='IVA incluido' mod='dbjointpurchase'}</span>

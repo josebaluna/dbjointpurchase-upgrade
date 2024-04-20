@@ -1,2 +1,1 @@
-# dbjointpurchase-upgrade
-Añadir funcionalidades al modulo
+# DB Joint Purchase
